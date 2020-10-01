@@ -24,6 +24,8 @@ FPS = pygame.time.Clock()
 surface = pygame.display.set_mode((400,600))
 surface.fill((255,255,255)) #white
 pygame.display.set_caption("GAME_STARTED")
+#street background
+back_street = pygame.image.load("game2_Street.png")
 
 #colors
 BLUE  = (0, 0, 255)
@@ -35,20 +37,33 @@ WHITE = (255, 255, 255)
 SCREEN_WIDTH = 400
 SCREEN_HEIGHT = 600
 SPEED = 5
-
+SCORE = 0
+RUSH_SCORE = 0
+ 
+#Setting up Fonts
+font = pygame.font.SysFont("Verdana", 60)
+font_small = pygame.font.SysFont("Verdana", 20)
+game_over = font.render("Game Over", True, BLACK)
 
 class Enemy(pygame.sprite.Sprite):
-      def __init__(self):
+      def __init__(self, step_size):
         super().__init__() 
         self.enemy_pic_loc = "game2_enemy.png"
         self.image = pygame.image.load(self.enemy_pic_loc)
         self.surf = pygame.Surface((50, 80))
         self.rect = self.surf.get_rect(center = (random.randint(40, 360)
                                                ,0))     
- 
+        self.inc_step = step_size
+      
+      def rush_hell(self,rush_step):
+          self.inc_step = rush_step
+    
       def move(self):
-        self.rect.move_ip(0,10)
+        global SCORE
+        # self.rect.move_ip(0,10)
+        self.rect.move_ip(0,self.inc_step)
         if (self.rect.bottom > 600):
+            SCORE+=1
             self.rect.top = 0
             self.rect.center = (random.randint(30, 370), 0)
  
@@ -82,54 +97,82 @@ class Player(pygame.sprite.Sprite):
  
          
 P1 = Player()
-E1 = Enemy()
-E2 = Enemy()
-E3 = Enemy()
-E4 = Enemy()
+E1 = Enemy(10)  #taking step_size  as 10 for start
 
 
 #Creating Sprites Groups
 enemies = pygame.sprite.Group()
 enemies.add(E1)
-enemies.add(E2)
-enemies.add(E3)
-enemies.add(E4)
 
 all_sprites = pygame.sprite.Group()
 all_sprites.add(P1)
 all_sprites.add(E1)
-all_sprites.add(E2)
-all_sprites.add(E3)
-all_sprites.add(E4)
  
 #Adding a new User event 
-INC_SPEED = pygame.USEREVENT + 1
-pygame.time.set_timer(INC_SPEED, 10)
+'''
+1.) pygame.time.set_timer(INC_SPEED, 1000)
+    pygame.time.set_timer(ADD_ENEMY, 10000)
+    This is a good gameplay setting
 
+'''
+INC_SPEED = pygame.USEREVENT + 1
+pygame.time.set_timer(INC_SPEED, 1000)  #5000ms = 5sec
+
+ADD_ENEMY = pygame.USEREVENT + 1
+pygame.time.set_timer(ADD_ENEMY, 10000)
+
+enemy_step_size_counter = 0
 
 while True:     
     for event in pygame.event.get(): 
         if event.type == INC_SPEED:
-            SPEED +=2
+            SPEED +=1
+        if event.type == ADD_ENEMY:
+            if enemy_step_size_counter==0:
+                temp_enemy = Enemy(2)
+                all_sprites.add(temp_enemy)
+                enemies.add(temp_enemy)
+                enemy_step_size_counter+=3
+            else:
+                temp_enemy = Enemy(enemy_step_size_counter)
+                all_sprites.add(temp_enemy)
+                enemies.add(temp_enemy)
+                enemy_step_size_counter+=6
 
         if event.type == QUIT:
             pygame.quit()
             sys.exit()
     
-    surface.fill(WHITE)
+    surface.blit(back_street,(0,0))
+    scores = font_small.render("SCORE : "+str(SCORE), True, BLACK)
+    surface.blit(scores, (10,10))
 
     #draw all objects
     for entity in all_sprites:
         surface.blit(entity.image,entity.rect)
         entity.move()
     
+    #enemy_collision  - enemy collides with other other enemy, speed of collided enemy increases to 8
+    for enemy in pygame.sprite.groupcollide(enemies,enemies,0,0).keys():
+        RUSH_SCORE+=1
+        rush_print = font_small.render("RUSH: "+str(RUSH_SCORE), True, BLACK)
+        surface.blit(rush_print,(250,10))
+        enemy.rush_hell(8)  #step_szie to 8
+
+
+    
+    
     #collision
     if pygame.sprite.spritecollideany(P1,enemies):
+        time.sleep(1)
         surface.fill(RED)
+        surface.blit(game_over,(50,50))
+        FINAL_SCORE = font_small.render("Your SCOre: "+str(SCORE), True, BLACK)
+        surface.blit(FINAL_SCORE,(50,200))
         pygame.display.update()
         for entity in all_sprites:
             entity.kill()
-        time.sleep(2)
+        time.sleep(3)
         pygame.quit()
         sys.exit()
         
