@@ -1,7 +1,7 @@
 import os
 import torch as T
 import torch.nn as nn
-import torch.nn.F as F
+import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np 
 
@@ -13,7 +13,7 @@ class ReplayMemory(object):
         self.new_memory_space = np.zeros((self.mem_size, *input_shape), dtype= np.float32)
         self.action_memory_space = np.zeros(self.mem_size, dtype=np.int64)
         self.reward_memory_space = np.zeros(self.mem_size, dtype=np.float32)
-        self.terminal_memory_space = np.zeros(self.mem_size,dtype=np.uint8)   #to store terminal state flags
+        self.terminal_memory_space = np.zeros(self.mem_size,dtype=np.int64)   #to store terminal state flags
 
     def storing_trans(self, state, action, reward, next_state, done):
         counter = self.mem_counter % self.mem_size #index of placing state
@@ -46,20 +46,22 @@ class Duelling_DQN(nn.Module):
         self.fc2 = nn.Linear(128,128)
 
         self.V = nn.Linear(128,1)
-        self.A = nn.Linear(28, n_actions)
+        self.A = nn.Linear(128, n_actions)
 
         self.optimiser = optim.Adam(self.parameters(), lr=alpha)
-        self.loss = nn.MSEloss()
+        self.loss = nn.MSELoss()
 
         self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
         self.to(self.device)
         self.checkpoint_dir = checkpt_dir
-        self.checkpoint_file = os.path.join(self.checkpoint_dir,name='duelling_dqn')
+        self.checkpoint_file = os.path.join(self.checkpoint_dir,name)
     
     def forward(self, x):
+        # print("X: ", x.shape)
         l1 = F.relu(self.fc1(x))
         l2 = F.relu(self.fc2(l1))
         V = self.V(l2)
+        # print("L2: ",l2.shape)
         A = self.A(l2)
 
         return V, A
@@ -79,11 +81,12 @@ class Agent(object):
         self.epsilon = epsilon
         self.eps_min = eps_min
         self.eps_rate = eps_rate
+        self.batch_size = batch_size
         self.action_space = [i for i in range(n_actions)]
         self.learn_step_counter = 0 #learning steps
         self.change2target = change2target
         
-        self.memory = ReplayMemory(mem_size, input_shape, n_actions)
+        self.memory = ReplayMemory(mem_size, input_dims, n_actions)
         self.q_val = Duelling_DQN(alpha, n_actions, input_dims=input_dims, name='q_val', checkpt_dir=checkpt_dir)
         self.q_next = Duelling_DQN(alpha, n_actions, input_dims=input_dims, name='q_next', checkpt_dir=checkpt_dir)
 
@@ -101,12 +104,11 @@ class Agent(object):
         return action
     
     def replace_target_network(self):
-        if self.learn_step_counter % self.change2target == 0 and /
-               self.change2target is not None:
+        if self.learn_step_counter % self.change2target == 0 and self.change2target is not None:
             self.q_next.load_state_dict(self.q_val.state_dict())
     
     def decrease_epsilon(self):
-        self.epsilon = self.epsilon - eps_rate if self.epsilon > self.eps_min else self.eps_min
+        self.epsilon = self.epsilon - self.eps_rate if self.epsilon > self.eps_min else self.eps_min
     
     def learn(self):
         #bsatch size fill
@@ -134,6 +136,7 @@ class Agent(object):
         
         q_next  = T.add(V_next, (A_next - A_next.mean(dim=1, keepdim=True)))
         q_target = reward + self.gamma*T.max(q_next, dim=1)[0].detach() #dim=1 as index is also returned, detach() to avoid backprop
+        
         q_target[dones] = 0.0   #done=1 , episode is over, so no reward for q_target viz. 0
 
         loss = self.q_val.loss(q_pred, q_target).to(self.q_val.device)
