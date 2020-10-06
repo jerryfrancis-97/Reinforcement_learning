@@ -26,7 +26,7 @@ if __name__ == '__main__':
             action = agent.choose_action(observation)
             next_observation, reward, done, info = env.step(action)
             score += reward
-            agent.store_transition(observation, action, reward, next_observation, done)
+            agent.store_transition(observation, action, reward, next_observation, int(done))
             agent.learn()
             observation = next_observation
         

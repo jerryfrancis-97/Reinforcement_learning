@@ -52,9 +52,10 @@ class Duelling_DQN(nn.Module):
         self.loss = nn.MSELoss()
 
         self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
+        print("DEVICE: ",self.device)
         self.to(self.device)
         self.checkpoint_dir = checkpt_dir
-        self.checkpoint_file = os.path.join(self.checkpoint_dir,name)
+        self.checkpoint_file = os.path.join(self.checkpoint_dir,name+'duelling_dqn')
     
     def forward(self, x):
         # print("X: ", x.shape)
@@ -74,8 +75,8 @@ class Duelling_DQN(nn.Module):
         self.load_state_dict(T.load(self.checkpoint_file))
     
 class Agent(object):
-    def __init__(self, gamma, epsilon, alpha, n_actions, input_dims, mem_size,\
-                    batch_size,eps_min=0.01, eps_rate=4e-8, change2target=1000,
+    def __init__(self, gamma, epsilon, alpha, n_actions, input_dims, mem_size,
+                    batch_size,eps_min=0.01, eps_rate=5e-7, change2target=1000,
                     checkpt_dir='tmp/duel_dqn'):
         self.gamma = gamma
         self.epsilon = epsilon
