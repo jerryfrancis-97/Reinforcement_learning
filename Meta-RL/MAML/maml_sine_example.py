@@ -41,12 +41,16 @@ class SineModel(nn.Module):
         print("Loading checkpoint...."+" "+str(self.checkpoint_file))
         self.load_state_dict(torch.load(self.checkpoint_file))	
 
+count_figs=1
 def plotter(true_x, true_y, pred_y, iteration, which_loss, loss,plot_dir):
-    plt.plot(sorted(true_x), sorted(true_y), color="b")
-    plt.plot(sorted(true_x), sorted(pred_y), color="r")
-    plt.legend("Iter:"+str(iteration)+which_loss+" loss:"+str(loss))
+    global count_figs
+    plt.figure(count_figs)
+    count_figs+=1
+    plt.scatter(true_x, true_y, color="b")
+    plt.scatter(true_x, pred_y, color="r")
+    plt.title("Iter:"+str(iteration)+which_loss+" loss:"+str(loss))
     plt.savefig(os.path.join(plot_dir,"Meta_iter_"+str(iteration)+which_loss))
-    plt.show()
+    # plt.show()
     print("---------- Plot saved! ------------")
     
 
@@ -54,14 +58,15 @@ def plotter(true_x, true_y, pred_y, iteration, which_loss, loss,plot_dir):
 def main(
         shots=10,
         tasks_per_batch=16,
-        num_tasks=1600,
+        num_tasks=16000,
         num_test_tasks=32,
         adapt_lr=0.01,
         meta_lr=0.001,
         adapt_steps=5,
-        hidden_dim=8,
+        hidden_dim=32,
 ):
-    EXPERIMENT_DIR = "./experiments/MAML_Sine_exps"
+    exp_name = input("Enter Experiment NAME (should be unique, else overwrites): ")
+    EXPERIMENT_DIR = "./experiments/MAML_Sine_exps"+exp_name
     if os.path.isdir(EXPERIMENT_DIR):
         print("Experiment folder opened ...")
     else:
@@ -123,7 +128,7 @@ def main(
         meta_train_loss.backward()
         opt.step()
         
-        if iter % 20 == 0:
+        if iter % 100 == 0:
             print('Iteration:', iter, 'Meta Train Loss', meta_train_loss.item()) 
             # print(x_query.requires_grad, y_query.requires_grad,query_preds.requires_grad,meta_train_loss.item())
             plotter(x_query, y_query,query_preds.detach().numpy(),iter,'Train', meta_train_loss.item(),model.plot_results)
